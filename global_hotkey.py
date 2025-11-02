@@ -1,19 +1,30 @@
 import keyboard
 import speech_recognition as sr
 import requests
-import time
+from collections import deque
+from datetime import datetime
 
 # ---- Settings ----
 HOTKEY = 'alt+h'
-LLAMA_MODEL = 'llama3'       # e.g., 'llama3', 'llama3.1', 'llama3:8b'
-OLLAMA_URL = 'http://localhost:11434/api/generate'
+CLEAR_HISTORY_HOTKEY = 'alt+shift+c'  # optional convenience
+LLAMA_MODEL = 'llama3'
+OLLAMA_CHAT_URL = 'http://localhost:11434/api/chat'
 LISTEN_SECONDS = 5
+HISTORY_MAX_MESSAGES = 50  # tracks both user and assistant messages
 
 recognizer = sr.Recognizer()
 mic = sr.Microphone()
 
+# Rolling chat history (messages are dicts with 'role' and 'content')
+chat_history = deque(maxlen=HISTORY_MAX_MESSAGES)
+
+# Optional: a brief system message that anchors behavior
+SYSTEM_PROMPT = (
+    "You are a concise, helpful local assistant. "
+    "Use the provided conversation context. Keep answers brief but clear."
+)
+
 def transcribe_seconds(seconds: int) -> str:
-    """Record from default mic for `seconds` seconds and return text (Google SR)."""
     print(f"🎤 Listening for {seconds} seconds...")
     with mic as source:
         recognizer.adjust_for_ambient_noise(source, duration=0.3)
@@ -27,48 +38,81 @@ def transcribe_seconds(seconds: int) -> str:
         print(f"STT service error: {e}")
         return ""
 
-def ask_llama(prompt: str) -> str:
-    """Send prompt to local Llama via Ollama and return the model's reply."""
+def call_llama_with_history(history_messages):
+    """Use Ollama's chat API with full message history."""
     payload = {
         "model": LLAMA_MODEL,
-        "prompt": (
-            "You are a concise, helpful assistant.\n"
-            f'User said: "{prompt}"\n'
-            "Answer helpfully and briefly."
-        ),
-        "stream": False
+        "messages": history_messages,
+        "stream": False,
+        # You can pass options here, e.g., temperature:
+        # "options": {"temperature": 0.5}
     }
     try:
-        r = requests.post(OLLAMA_URL, json=payload, timeout=120)
+        r = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=180)
         r.raise_for_status()
         data = r.json()
-        return data.get("response", "").strip()
+        # Ollama chat returns the final assistant message under data["message"]["content"]
+        msg = data.get("message", {}) or {}
+        return msg.get("content", "").strip()
     except requests.exceptions.ConnectionError:
         return ("Could not reach Ollama at http://localhost:11434.\n"
-                "Make sure Ollama is installed, running, and the model is pulled "
+                "Ensure Ollama is running and a model is pulled "
                 f"(e.g., `ollama pull {LLAMA_MODEL}`).")
     except Exception as e:
         return f"LLM error: {e}"
 
+def build_messages_for_llm(user_text: str):
+    """
+    Compose the message list: optional system message + (up to) last 50 messages + new user message.
+    """
+    messages = []
+
+    # Optional system message to set behavior (not counted in your 50 unless you want it to be)
+    messages.append({"role": "system", "content": SYSTEM_PROMPT})
+
+    # Add the rolling history
+    messages.extend(list(chat_history))
+
+    # Add the fresh user message
+    messages.append({"role": "user", "content": user_text})
+
+    return messages
+
 def run_stt_and_llm():
     text = transcribe_seconds(LISTEN_SECONDS)
     if not text:
-        print("🤷 Could not understand anything clearly.")
+        print("🤷 Didn't catch anything. (No history updated.)")
         return
-    print(f"🗣 You said: {text}")
 
-    print("🤖 Asking local Llama...")
-    reply = ask_llama(text)
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"🗣 [{timestamp}] You said: {text}")
+
+    # Build full message list for LLM
+    messages = build_messages_for_llm(text)
+
+    print("🤖 Asking local Llama with last 50 messages of context...")
+    reply = call_llama_with_history(messages)
     print("💬 Llama:", reply)
 
+    # Update rolling history: only add if we had user text and an LLM reply
+    chat_history.append({"role": "user", "content": text})
+    chat_history.append({"role": "assistant", "content": reply})
+
+def clear_history():
+    chat_history.clear()
+    print("🧹 Conversation history cleared.")
+
 def main():
-    # Prime the mic once (avoids first-use latency later)
+    # Prime mic to reduce first-run latency
     with mic as source:
         recognizer.adjust_for_ambient_noise(source, duration=0.2)
 
     keyboard.add_hotkey(HOTKEY, run_stt_and_llm)
-    print(f"Ready. Press {HOTKEY.upper()} to record {LISTEN_SECONDS}s and ask Llama. Ctrl+C to quit.")
-    keyboard.wait()  # keep the script running
+    keyboard.add_hotkey(CLEAR_HISTORY_HOTKEY, clear_history)
+
+    print(f"Ready. Press {HOTKEY.upper()} to record {LISTEN_SECONDS}s and ask Llama.")
+    print(f"Press {CLEAR_HISTORY_HOTKEY.upper()} to clear the stored history. Ctrl+C to quit.")
+    keyboard.wait()
 
 if __name__ == "__main__":
     main()
