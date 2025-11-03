@@ -33,7 +33,7 @@ Perfect for Linux desktops (Arch recommended), voice‑operated workflows, and p
 ### System
 
 ```bash
-sudo pacman -S python python-pyaudio portaudio ffmpeg
+sudo pacman -S python python-pyaudio portaudio ffmpeg tk
 paru -S piper-tts-bin  # or yay
 ```
 
