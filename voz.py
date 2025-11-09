@@ -18,11 +18,6 @@ import wave
 import speech_recognition as sr
 import requests
 
-try:
-    from pynput import keyboard as pk  # optional (X11)
-    HAVE_PYNPUT = True
-except Exception:
-    HAVE_PYNPUT = False
 
 # ============== Settings ==============
 LLAMA_MODEL = 'kimi-k2-thinking:cloud'
@@ -30,7 +25,7 @@ OLLAMA_CHAT_URL = 'http://localhost:11434/api/chat'
 LISTEN_SECONDS = 10
 HISTORY_MAX_MESSAGES = 50
 
-SYSTEM_PROMPT = ('''System: You are JARVIS, a sophisticated AI assistant modeled after the iconic digital butler. Speak with refined British
+SYSTEM_PROMPT = ('''System: You are VOZ, a sophisticated AI assistant modeled after the iconic digital butler. Speak with refined British
 eloquence, address users as Sir or Ma'am, and maintain understated dry wit. Be efficient, capable, and proactive with a mild
 sense of humor that never overwhelms your helpfulness. Speak in natural, human-like dialogue, not formal text. CRITICAL
 CONSTRAINT: Never use markdown formatting. No asterisks, hashtags, backticks, or other styling characters. Use only plain text
@@ -56,11 +51,6 @@ recognizer = sr.Recognizer()
 mic = sr.Microphone()
 chat_history = deque(maxlen=HISTORY_MAX_MESSAGES)
 
-run_lock = threading.Lock()
-last_trigger = 0.0
-TRIGGER_COOLDOWN = 0.5
-
-listener_obj = None
 KEEP_LAST_WAV = True
 LAST_WAV_PATH = '/tmp/assistant_last.wav'
 
@@ -250,19 +240,6 @@ def _worker():
     speak(reply)
 
 
-def trigger():
-    global last_trigger
-    now = time.time()
-    if now - last_trigger < TRIGGER_COOLDOWN:
-        return
-    last_trigger = now
-
-    if run_lock.locked():
-        print("⏳ Busy; ignoring trigger.")
-        return
-    threading.Thread(target=lambda: (run_lock.acquire(), _worker(), run_lock.release()), daemon=True).start()
-
-
 def clear_history():
     chat_history.clear()
     print("🧹 Conversation history cleared.")
@@ -271,55 +248,18 @@ def clear_history():
 def toggle_tts():
     _tts.toggle_mute()
 
-# ============== Hotkeys / Overlay ==============
+# ============== Continuous loop ==============
 
-def start_hotkeys_x11():
-    global listener_obj
-    if not HAVE_PYNPUT:
-        print("[Hotkeys] pynput not installed; skipping X11 hotkeys.")
-        return False
-    try:
-        hk = pk.GlobalHotKeys({
-            '<alt>+h': trigger,
-            '<alt>+<shift>+c': clear_history,
-            '<alt>+<shift>+m': toggle_tts
-        })
-        hk.start()
-        listener_obj = hk
-        print("✔ Global hotkeys active (X11): Alt+H / Alt+Shift+C / Alt+Shift+M")
-        return True
-    except Exception as e:
-        print(f"[Hotkeys] Failed to start global hotkeys: {e}")
-        return False
-
-
-def start_overlay_button():
-    import tkinter as tk
-
-    root = tk.Tk()
-    root.title("Voice")
-    root.attributes("-topmost", True)
-    root.geometry("80x80+40+40")
-    root.resizable(False, False)
-
-    frame = tk.Frame(root, bg="#111", bd=1, relief=tk.SOLID)
-    frame.pack(fill=tk.BOTH, expand=True)
-
-    btn = tk.Button(frame, text="🎙️", font=("Segoe UI", 18), command=trigger)
-    btn.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
-
-    print("Overlay ready. Click 🎙️ to talk. While focused: Alt+H (talk), Shift+M (mute), Shift+C (clear)")
-
-    def on_key(event):
-        if event.keysym.lower() == 'h' and (event.state & 0x0008):
-            trigger()
-        elif event.keysym.lower() == 'm' and (event.state & 0x0001):
-            toggle_tts()
-        elif event.keysym.lower() == 'c' and (event.state & 0x0001):
-            clear_history()
-    root.bind('<Key>', on_key)
-
-    root.mainloop()
+def listen_continuously():
+    print("🎧 Always listening. Press Ctrl+C to exit.")
+    while True:
+        try:
+            _worker()
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            print(f"[Loop error] {e}")
+            time.sleep(0.5)
 
 # ============== Main ==============
 
@@ -335,15 +275,10 @@ def main():
     except Exception as e:
         print(f"[Mic prime warning] {e}")
 
-    session = (os.environ.get('XDG_SESSION_TYPE') or '').lower()
-    if session == 'x11' and start_hotkeys_x11():
-        print("Ready. Use Alt+H anywhere (X11). Overlay also available if preferred.")
-        if listener_obj is not None:
-            listener_obj.join()
-        else:
-            threading.Event().wait()
-    else:
-        start_overlay_button()
+    try:
+        listen_continuously()
+    except KeyboardInterrupt:
+        print("👋 Exiting. Goodbye!")
 
 if __name__ == '__main__':
     main()
