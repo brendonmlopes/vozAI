@@ -5,7 +5,7 @@ Voice Assistant (Local LLM + Offline STT + Piper TTS)
 A fully offline Jarvis‑style voice assistant:
 
 * 🎤 Speech‑to‑Text (STT) using `speech_recognition`
-* 🤖 Local LLM via **Ollama** (default: `llama3`)
+* 🤖 Local LLM via **Ollama** (default: `kimi-k2-thinking`)
 * 🧠 Persistent rolling memory (50 messages)
 * 🗣️ High‑quality offline TTS using **Piper‑TTS**
 * 🎛️ Hotkeys on X11, floating button on Wayland
@@ -33,8 +33,13 @@ Perfect for Linux desktops (Arch recommended), voice‑operated workflows, and p
 ### System
 
 ```bash
-sudo pacman -S python python-pyaudio portaudio ffmpeg tk
+sudo pacman -S python python-pyaudio portaudio ffmpeg
 paru -S piper-tts-bin  # or yay
+```
+
+```bash
+apt update && apt upgrade
+apt install piper-tts-bin python python-pyaudio portaudio ffmpeg
 ```
 
 ### Python
@@ -49,10 +54,16 @@ Install **Ollama**:
 [https://ollama.com](https://ollama.com)
 
 Then pull a model:
-
+If you want to use the fastest model I've tested, use this:
+```bash
+ollama pull kimi-k2-thinking:cloud
+```
+Not as fast but very realiable llama3:
 ```bash
 ollama pull llama3
 ```
+
+Feel free to use any model you prefer, just change it in the LLAMA_MODEL settings inside voz.py
 
 ---
 
@@ -124,7 +135,7 @@ ollama pull phi3
 
 * [ ] Whisper local STT option
 * [ ] Auto‑download voice script
-* [ ] VAD (voice activity detection)
+* [x] VAD (voice activity detection)
 * [ ] OpenAI Realtime compatibility
 
 ---
