@@ -22,7 +22,7 @@ import requests
 # ============== Settings ==============
 LLAMA_MODEL = 'kimi-k2-thinking:cloud'
 OLLAMA_CHAT_URL = 'http://localhost:11434/api/chat'
-LISTEN_SECONDS = 10
+LISTEN_SECONDS = 60
 HISTORY_MAX_MESSAGES = 50
 
 SYSTEM_PROMPT = ('''System: You are VOZ, a sophisticated AI assistant modeled after the iconic digital butler. Speak with refined British
