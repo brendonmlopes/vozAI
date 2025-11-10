@@ -230,14 +230,21 @@ def _worker():
     print(f"🗣 [{ts}] You said: {text}")
 
     msgs = build_messages_for_llm(text)
-    print("🤖 Asking local LLM model ...")
+    print("🤖 Asking LLM model ...")
     reply = call_llama_with_history(msgs)
     print("💬 Llama:", reply)
+    if(reply.startswith("LLM error:")):
+        print("⚠️ LLM call failed. (No history updated.)")
+        if(reply.find("Unauthorized")>=0):
+            print("⚠️ Cloud model detected. User is not logged in to ollama. run \"ollama signin\" to login to use this model. Cloud models are only supported when signed in. (No history updated.)")
+            reply="Cloud model detected. User is not logged in to ollama. run \"ollama signin\" to login to use this model. Cloud models are only supported when signed in. Either log in to ollama or switch to a local model."
 
-    chat_history.append({"role": "user", "content": text})
-    chat_history.append({"role": "assistant", "content": reply})
 
     speak(reply)
+
+    if(not reply.startswith("LLM error:")):
+        chat_history.append({"role": "user", "content": text})
+        chat_history.append({"role": "assistant", "content": reply})
 
 
 def clear_history():
