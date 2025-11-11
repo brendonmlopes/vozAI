@@ -15,7 +15,10 @@ Perfect for Linux desktops (Arch recommended), voice‑operated workflows, and p
 
 ---
 ## Showcase
-[![Video Title](https://imgs.search.brave.com/2_NMZTgjdGugfmxqmaOvT3o9aplA6krV5XT_NwOzdL4/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly90My5m/dGNkbi5uZXQvanBn/LzE1LzQwLzY2LzQw/LzM2MF9GXzE1NDA2/NjQwMDNfMXF6TVR2/Sk9FZG16UGNMYmE5/WkZ6QUhsYzloMTRr/WXguanBn)](https://www.youtube.com/watch?v=XT6RYqDbLgk)
+Click below to watch the video
+
+>[![Showcase video](https://img.youtube.com/vi/XT6RYqDbLgk/hqdefault.jpg)](https://www.youtube.com/watch?v=XT6RYqDbLgk)
+
 
 ## 🚀 Features
 
